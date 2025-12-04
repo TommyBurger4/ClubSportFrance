@@ -39,6 +39,18 @@ export interface UserData {
   displayName: string;
   photoURL?: string;
   role: 'user' | 'club';
+  // Donnees club (si role='club')
+  sport?: string;
+  league?: string;
+  address?: {
+    street: string;
+    postalCode: string;
+    city: string;
+  };
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
   createdAt: any;
   updatedAt: any;
 }
@@ -49,13 +61,21 @@ export interface UserData {
  * @param password - Mot de passe (min 6 caracteres)
  * @param displayName - Nom d'affichage
  * @param role - Role utilisateur ('user' ou 'club')
+ * @param sport - Sport du club (si role='club')
+ * @param league - Ligue du club (si role='club')
+ * @param address - Adresse du club (si role='club')
+ * @param coordinates - Coordonnees GPS du club (si role='club')
  * @returns AuthResult avec user si succes, error si echec
  */
 export const registerWithEmail = async (
   email: string,
   password: string,
   displayName: string,
-  role: 'user' | 'club' = 'user'
+  role: 'user' | 'club' = 'user',
+  sport?: string,
+  league?: string,
+  address?: { street: string; postalCode: string; city: string },
+  coordinates?: { latitude: number; longitude: number }
 ): Promise<AuthResult> => {
   try {
     // Creer compte Firebase Auth
@@ -66,15 +86,27 @@ export const registerWithEmail = async (
     await updateProfile(user, { displayName });
 
     // Creer document utilisateur dans Firestore users/
-    const userData: UserData = {
+    const userData: any = {
       uid: user.uid,
       email: user.email!,
       displayName,
-      photoURL: user.photoURL || undefined,
       role,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
+
+    // Ajouter photoURL uniquement si present (pas undefined)
+    if (user.photoURL) {
+      userData.photoURL = user.photoURL;
+    }
+
+    // Ajouter donnees club si role='club'
+    if (role === 'club') {
+      if (sport) userData.sport = sport;
+      if (league) userData.league = league;
+      if (address) userData.address = address;
+      if (coordinates) userData.coordinates = coordinates;
+    }
 
     await setDoc(doc(db, 'users', user.uid), userData);
 
@@ -254,15 +286,19 @@ export const loginWithGoogle = async (role: 'user' | 'club' = 'user'): Promise<A
 
     if (!userDoc.exists()) {
       // Creer document utilisateur si n'existe pas
-      const userData: UserData = {
+      const userData: any = {
         uid: user.uid,
         email: user.email!,
         displayName: user.displayName || 'Utilisateur',
-        photoURL: user.photoURL || undefined,
         role,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
+
+      // Ajouter photoURL uniquement si present
+      if (user.photoURL) {
+        userData.photoURL = user.photoURL;
+      }
 
       await setDoc(doc(db, 'users', user.uid), userData);
     }
@@ -295,15 +331,19 @@ export const loginWithApple = async (role: 'user' | 'club' = 'user'): Promise<Au
 
     if (!userDoc.exists()) {
       // Creer document utilisateur si n'existe pas
-      const userData: UserData = {
+      const userData: any = {
         uid: user.uid,
         email: user.email!,
         displayName: user.displayName || 'Utilisateur',
-        photoURL: user.photoURL || undefined,
         role,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
+
+      // Ajouter photoURL uniquement si present
+      if (user.photoURL) {
+        userData.photoURL = user.photoURL;
+      }
 
       await setDoc(doc(db, 'users', user.uid), userData);
     }

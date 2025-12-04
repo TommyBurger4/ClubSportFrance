@@ -1,105 +1,140 @@
 'use client';
 
 /**
- * Page d'inscription - Espace Club
+ * Page d'inscription - Espace Club (2 etapes)
  *
- * Permet aux clubs de creer un compte pour gerer leur fiche
- * - Inscription Email/Password (role='club' automatique)
- * - Inscription Google
- * - Inscription Apple
- * - Validation formulaire
+ * ETAPE 1 : Informations du compte
+ * - Nom du club, Sport, Ligue, Email, Mot de passe
+ *
+ * ETAPE 2 : Localisation
+ * - Adresse (rue, code postal, ville)
+ * - Geocodage automatique pour coordonnees GPS
  */
 
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button, Input, Card } from '@/components/ui';
+import { Button, Input, Card, Select } from '@/components/ui';
 import { isValidEmail, validatePassword, passwordsMatch } from '@/services/auth/authService';
+import { SPORTS, LEAGUES } from '@/constants/sports';
+import { geocodeAddress, validateAddress } from '@/services/geocoding/geocodingService';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { register, loginGoogle, loginApple, error, clearError } = useAuth();
+  const { register, error, clearError } = useAuth();
 
+  // Etape actuelle (1 ou 2)
+  const [step, setStep] = useState(1);
+
+  // Etape 1 : Informations du compte
   const [clubName, setClubName] = useState('');
+  const [sport, setSport] = useState('');
+  const [league, setLeague] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Etape 2 : Adresse
+  const [street, setStreet] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [city, setCity] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
 
-  // Inscription Email/Password
-  const handleEmailRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Validation Etape 1
+  const validateStep1 = (): boolean => {
     setLocalError('');
     clearError();
 
-    // Validation
-    if (!clubName || !email || !password || !confirmPassword) {
+    if (!clubName || !sport || !league || !email || !password || !confirmPassword) {
       setLocalError('Veuillez remplir tous les champs');
-      return;
+      return false;
     }
 
     if (!isValidEmail(email)) {
       setLocalError('Adresse email invalide');
-      return;
+      return false;
     }
 
     const passwordValidation = validatePassword(password);
     if (!passwordValidation.valid) {
       setLocalError(passwordValidation.error || 'Mot de passe invalide');
-      return;
+      return false;
     }
 
     if (!passwordsMatch(password, confirmPassword)) {
       setLocalError('Les mots de passe ne correspondent pas');
+      return false;
+    }
+
+    return true;
+  };
+
+  // Passer a l'etape 2
+  const handleNextStep = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (validateStep1()) {
+      setStep(2);
+    }
+  };
+
+  // Retour a l'etape 1
+  const handlePreviousStep = () => {
+    setStep(1);
+    setLocalError('');
+    clearError();
+  };
+
+  // Inscription finale (Etape 2)
+  const handleEmailRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLocalError('');
+    clearError();
+
+    // Validation adresse
+    const addressValidation = validateAddress(street, postalCode, city);
+    if (!addressValidation.valid) {
+      setLocalError(addressValidation.error || 'Adresse invalide');
       return;
     }
 
     setLoading(true);
 
-    // Inscription avec role='club' automatique
-    const result = await register(email, password, clubName, 'club');
+    // Geocodage de l'adresse
+    const geocodingResult = await geocodeAddress(street, postalCode, city);
+
+    if (!geocodingResult.success) {
+      setLocalError(geocodingResult.error || 'Impossible de localiser l\'adresse');
+      setLoading(false);
+      return;
+    }
+
+    // Inscription avec toutes les donnees
+    const result = await register(
+      email,
+      password,
+      clubName,
+      'club',
+      sport,
+      league,
+      {
+        street,
+        postalCode,
+        city,
+      },
+      {
+        latitude: geocodingResult.latitude!,
+        longitude: geocodingResult.longitude!,
+      }
+    );
 
     if (result.success) {
       // Redirection vers dashboard
       router.push('/dashboard');
     } else {
       setLocalError(result.error || 'Erreur lors de l\'inscription');
-    }
-
-    setLoading(false);
-  };
-
-  // Inscription Google
-  const handleGoogleRegister = async () => {
-    setLocalError('');
-    clearError();
-    setLoading(true);
-
-    const result = await loginGoogle('club');
-
-    if (result.success) {
-      router.push('/dashboard');
-    } else {
-      setLocalError(result.error || 'Erreur d\'inscription Google');
-    }
-
-    setLoading(false);
-  };
-
-  // Inscription Apple
-  const handleAppleRegister = async () => {
-    setLocalError('');
-    clearError();
-    setLoading(true);
-
-    const result = await loginApple('club');
-
-    if (result.success) {
-      router.push('/dashboard');
-    } else {
-      setLocalError(result.error || 'Erreur d\'inscription Apple');
     }
 
     setLoading(false);
@@ -117,10 +152,18 @@ export default function RegisterPage() {
             <h1 className="text-2xl font-bold text-gray-900 whitespace-nowrap">ClubSportFrance</h1>
           </Link>
           <h2 className="text-xl font-semibold text-gray-900 mt-4 whitespace-nowrap">Inscrire mon club</h2>
-          <p className="text-gray-600 mt-2 whitespace-normal">Creez un compte pour gerer votre club</p>
+          <p className="text-gray-600 mt-2 whitespace-normal">
+            Etape {step} sur 2 : {step === 1 ? 'Informations du compte' : 'Localisation'}
+          </p>
         </div>
 
         <Card>
+          {/* Indicateur d'etapes */}
+          <div className="mb-6 flex items-center gap-2">
+            <div className={`flex-1 h-2 rounded-full ${step >= 1 ? 'bg-primary' : 'bg-gray-200'}`}></div>
+            <div className={`flex-1 h-2 rounded-full ${step >= 2 ? 'bg-primary' : 'bg-gray-200'}`}></div>
+          </div>
+
           {/* Erreur */}
           {displayError && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -128,94 +171,139 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {/* Formulaire inscription */}
-          <form onSubmit={handleEmailRegister} className="space-y-4">
-            <Input
-              type="text"
-              label="Nom du club"
-              placeholder="Ex: FC Paris, Tennis Club Lyon..."
-              value={clubName}
-              onChange={(e) => setClubName(e.target.value)}
-              required
-              fullWidth
-              autoComplete="organization"
-              helperText="Ce nom sera affiche sur votre fiche club"
-            />
+          {/* ETAPE 1 : Informations du compte */}
+          {step === 1 && (
+            <form onSubmit={handleNextStep} className="space-y-4">
+              <Input
+                type="text"
+                label="Nom du club"
+                placeholder="Ex: FC Paris, Tennis Club Lyon..."
+                value={clubName}
+                onChange={(e) => setClubName(e.target.value)}
+                required
+                fullWidth
+                autoComplete="organization"
+                helperText="Ce nom sera affiche sur votre fiche club"
+              />
 
-            <Input
-              type="email"
-              label="Email"
-              placeholder="contact@monclub.fr"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              fullWidth
-              autoComplete="email"
-            />
+              <Select
+                label="Sport"
+                value={sport}
+                onChange={(e) => setSport(e.target.value)}
+                options={SPORTS}
+                required
+                fullWidth
+                helperText="Selectionnez le sport principal de votre club"
+              />
 
-            <Input
-              type="password"
-              label="Mot de passe"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              fullWidth
-              autoComplete="new-password"
-              helperText="Minimum 6 caracteres"
-            />
+              <Select
+                label="Ligue / Federation"
+                value={league}
+                onChange={(e) => setLeague(e.target.value)}
+                options={LEAGUES}
+                required
+                fullWidth
+                helperText="A quelle federation etes-vous rattache ?"
+              />
 
-            <Input
-              type="password"
-              label="Confirmer le mot de passe"
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              fullWidth
-              autoComplete="new-password"
-            />
+              <Input
+                type="email"
+                label="Email"
+                placeholder="contact@monclub.fr"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                fullWidth
+                autoComplete="email"
+              />
 
-            <Button type="submit" fullWidth loading={loading}>
-              Creer mon compte club
-            </Button>
-          </form>
+              <Input
+                type="password"
+                label="Mot de passe"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                fullWidth
+                autoComplete="new-password"
+                helperText="Minimum 6 caracteres"
+              />
 
-          {/* Separateur */}
-          <div className="my-6 flex items-center gap-4">
-            <div className="flex-1 h-px bg-gray-200"></div>
-            <span className="text-sm text-gray-500">ou</span>
-            <div className="flex-1 h-px bg-gray-200"></div>
-          </div>
+              <Input
+                type="password"
+                label="Confirmer le mot de passe"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                fullWidth
+                autoComplete="new-password"
+              />
 
-          {/* Inscription sociale */}
-          <div className="space-y-3">
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              onClick={handleGoogleRegister}
-              disabled={loading}
-            >
-              <span className="flex items-center justify-center gap-2">
-                <span>🔷</span>
-                Continuer avec Google
-              </span>
-            </Button>
+              <Button type="submit" fullWidth>
+                Suivant
+              </Button>
+            </form>
+          )}
 
-            <Button
-              type="button"
-              variant="secondary"
-              fullWidth
-              onClick={handleAppleRegister}
-              disabled={loading}
-            >
-              <span className="flex items-center justify-center gap-2">
-                <span>🍎</span>
-                Continuer avec Apple
-              </span>
-            </Button>
-          </div>
+          {/* ETAPE 2 : Localisation */}
+          {step === 2 && (
+            <form onSubmit={handleEmailRegister} className="space-y-4">
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  📍 Indiquez l'adresse de votre club pour apparaitre sur la carte
+                </p>
+              </div>
+
+              <Input
+                type="text"
+                label="Adresse"
+                placeholder="12 Rue du Sport"
+                value={street}
+                onChange={(e) => setStreet(e.target.value)}
+                required
+                fullWidth
+                helperText="Numero et nom de rue"
+              />
+
+              <Input
+                type="text"
+                label="Code postal"
+                placeholder="67000"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                required
+                fullWidth
+                maxLength={5}
+                helperText="5 chiffres"
+              />
+
+              <Input
+                type="text"
+                label="Ville"
+                placeholder="Strasbourg"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                required
+                fullWidth
+              />
+
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  fullWidth
+                  onClick={handlePreviousStep}
+                  disabled={loading}
+                >
+                  Retour
+                </Button>
+                <Button type="submit" fullWidth loading={loading}>
+                  Creer mon compte
+                </Button>
+              </div>
+            </form>
+          )}
 
           {/* Lien connexion */}
           <div className="mt-6 text-center">

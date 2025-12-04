@@ -10,10 +10,101 @@ et ce projet respecte [Semantic Versioning](https://semver.org/lang/fr/).
 ## [Non publie]
 
 ### En cours
-- Integration avec Firebase Firestore pour clubs reels (remplacer mock data)
 - Configuration OAuth Firebase Console (Google Sign-In + Apple Sign-In)
-- Creation route /dashboard pour clubs connectes
+- Modal edition profil club (description, contact, equipements, photos)
 - Middleware protection routes privees
+
+---
+
+## [0.4.0] - 2025-12-04
+
+### 🗺️ Map interactive complete avec clubs reels
+
+#### Ajoute
+- **Inscription club avec adresse** :
+  - Formulaire 2 etapes : Step 1 (compte), Step 2 (adresse)
+  - Composant Select pour dropdowns sports/ligues
+  - 3 champs adresse separés (rue, code postal, ville)
+  - Geocodage automatique via Nominatim API (gratuit)
+  - Stockage address + coordinates dans Firestore
+  - Validation adresse avant creation compte
+- **Service clubService.ts** :
+  - getAllClubs() : recupere tous les clubs avec role='club'
+  - getClubById(clubId) : recupere un club specifique
+  - getClubsBySport() et getClubsByLeague() (prepares pour filtres futurs)
+  - Filtrage clubs sans coordinates (adresse incomplete)
+- **Page profil club (/clubs/[clubId])** :
+  - Affichage public de toutes les infos club
+  - Mode edition si utilisateur = proprietaire
+  - Sections : Informations, Contact, Equipements, Localisation, Stats
+  - Boutons "Modifier" pour chaque section (UI uniquement, edition a implementer)
+  - Bouton deconnexion en bas pour proprietaire
+  - Badge "Votre club" si proprietaire
+- **Page dashboard (/dashboard)** :
+  - Redirection automatique vers /clubs/[userId]?edit=true
+  - Verification role='club' obligatoire
+  - Redirection /login si non connecte
+- **Recherche geographique de villes** :
+  - Barre recherche avec bouton 🔍
+  - Geocodage ville via Nominatim API
+  - Zoom automatique sur ville trouvée (niveau 12)
+  - Placeholder "Rechercher une ville en France..."
+  - Alert si ville introuvable
+- **Filtres par sport** :
+  - Dropdown filtres avec icône entonnoir
+  - 4 sports disponibles : Football ⚽, Basketball 🏀, Volleyball 🏐, Hockey 🏒
+  - Badge rouge avec nombre de filtres actifs
+  - Fermeture automatique au clic exterieur
+  - Bouton "Réinitialiser" si filtres actifs
+  - Compteur clubs filtres (X / Y clubs)
+- **Header transparent** :
+  - Position absolute au-dessus de la carte
+  - Logo seul a gauche
+  - Recherche + Filtres + Espace Club a droite
+  - Shadow sur chaque element blanc
+  - Responsive mobile
+- **Affichage clubs reels** :
+  - Remplacement complete mock data par Firestore
+  - Chargement dynamique depuis collection users/ (role='club')
+  - Popup markers avec lien "Voir la fiche →"
+  - Emoji sport dans markers personnalises
+- **Simplification architecture** :
+  - Suppression features utilisateurs reguliers (favoris, profils)
+  - Focus uniquement clubs : consultation publique, gestion par proprietaire
+  - Users peuvent UNIQUEMENT voir carte et profils clubs (pas de compte user)
+
+#### Modifie
+- **Firestore Rules** :
+  - Lecture publique pour documents role='club' (visitors peuvent voir clubs)
+  - Lecture authentifiee pour role='user' (preparation future)
+  - Creation/Update/Delete uniquement par proprietaire
+- **MapView** :
+  - Prop searchCenter pour zoom sur ville recherchee
+  - Prop autoZoom pour zoom sur clubs filtres
+  - Composant SearchZoom pour gerer zoom ville
+  - Composant AutoZoom pour gerer zoom clubs
+  - Memorisation icones (useMemo) pour performance
+  - Stabilisation geolocalisation (setView unique)
+- **Carte** :
+  - Suppression legend overlay (encombrant)
+  - Stats en bottom-left (X clubs disponibles)
+  - Panneau filtres en dropdown top-right
+
+#### Corrige
+- Erreur Leaflet "Map container is being reused" (ajout key unique)
+- Erreur "undefined is not an object" geolocalisation (try/catch + hasSetView flag)
+- Erreur Firestore photoURL undefined (conditional add uniquement si present)
+- Warning Firestore offline mode (temporaire, auto-reconnect)
+- Deploiement Firestore Rules (firebase use --add puis firebase deploy --only firestore:rules)
+
+#### Technique
+- geocodingService.ts : geocodeAddress() via Nominatim
+- clubService.ts : getAllClubs(), getClubById()
+- Firestore collection users/ : champs address + coordinates ajoutes
+- Composant Select.tsx : dropdown reutilisable
+- Constants sports.ts : SPORTS et LEAGUES arrays
+- Firebase CLI configure (.firebaserc cree)
+- Firestore Rules deployees sur projet clubsportfrance-99127
 
 ---
 

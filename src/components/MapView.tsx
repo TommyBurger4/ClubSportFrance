@@ -11,7 +11,7 @@
  * - Gratuit et sans cle API
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
@@ -37,6 +37,49 @@ interface MapViewProps {
     lat: number;
     lng: number;
   }>;
+  autoZoom?: boolean;
+  searchCenter?: [number, number] | null;
+}
+
+// Composant pour zoom sur recherche geographique
+function SearchZoom({ center }: { center: [number, number] | null }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!center) return;
+
+    try {
+      map.setView(center, 12);
+    } catch (error) {
+      console.warn('Erreur search zoom:', error);
+    }
+  }, [center, map]);
+
+  return null;
+}
+
+// Composant pour auto-zoom sur les clubs filtres
+function AutoZoom({ clubs }: { clubs: Array<{ lat: number; lng: number }> }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (clubs.length === 0) return;
+
+    try {
+      if (clubs.length === 1) {
+        // Si un seul club, zoom dessus
+        map.setView([clubs[0].lat, clubs[0].lng], 13);
+      } else {
+        // Si plusieurs clubs, fit bounds pour tous les voir
+        const bounds = L.latLngBounds(clubs.map(club => [club.lat, club.lng]));
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+      }
+    } catch (error) {
+      console.warn('Erreur auto-zoom:', error);
+    }
+  }, [clubs, map]);
+
+  return null;
 }
 
 // Composant pour recentrer la carte
@@ -44,7 +87,11 @@ function RecenterButton({ center }: { center: [number, number] }) {
   const map = useMap();
 
   const handleRecenter = () => {
-    map.setView(center, 12);
+    try {
+      map.setView(center, 12);
+    } catch (error) {
+      console.warn('Erreur recenter:', error);
+    }
   };
 
   return (
@@ -61,25 +108,31 @@ function RecenterButton({ center }: { center: [number, number] }) {
 // Composant pour gerer la geolocalisation
 function UserLocationMarker() {
   const [position, setPosition] = useState<[number, number] | null>(null);
+  const [hasSetView, setHasSetView] = useState(false);
   const map = useMap();
 
   useEffect(() => {
-    if ('geolocation' in navigator) {
+    if ('geolocation' in navigator && !hasSetView) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const userPos: [number, number] = [pos.coords.latitude, pos.coords.longitude];
           setPosition(userPos);
-          map.setView(userPos, 12);
+          try {
+            map.setView(userPos, 12);
+            setHasSetView(true);
+          } catch (error) {
+            console.warn('Erreur setView:', error);
+          }
         },
         (error) => {
           console.warn('Geolocalisation refusee:', error);
         }
       );
     }
-  }, [map]);
+  }, [map, hasSetView]);
 
   // Icone personnalisee pour l'utilisateur (pin bleu avec emoji)
-  const userIcon = new L.DivIcon({
+  const userIcon = useMemo(() => new L.DivIcon({
     html: `
       <div class="custom-marker-pin user-marker">
         <div class="pin-emoji">📍</div>
@@ -89,7 +142,7 @@ function UserLocationMarker() {
     iconSize: [40, 50],
     iconAnchor: [20, 50],
     popupAnchor: [0, -50],
-  });
+  }), []);
 
   return position ? (
     <>
@@ -107,15 +160,23 @@ export const MapView: React.FC<MapViewProps> = ({
   center = [46.603354, 1.888334], // Centre de la France
   zoom = 6,
   clubs = [],
+  autoZoom = false,
+  searchCenter = null,
 }) => {
   // Fonction pour obtenir l'emoji selon le sport
   const getSportEmoji = (sport: string): string => {
     const sportEmojis: { [key: string]: string } = {
+      'football': '⚽',
       'Football': '⚽',
-      'Tennis': '🎾',
+      'basketball': '🏀',
       'Basketball': '🏀',
-      'Natation': '🏊',
+      'volleyball': '🏐',
       'Volleyball': '🏐',
+      'hockey': '🏒',
+      'Hockey': '🏒',
+      'Hockey sur Glace': '🏒',
+      'Tennis': '🎾',
+      'Natation': '🏊',
       'Rugby': '🏉',
       'Handball': '🤾',
       'Cyclisme': '🚴',
@@ -130,21 +191,27 @@ export const MapView: React.FC<MapViewProps> = ({
     return sportEmojis[sport] || '🏅'; // 🏅 par defaut
   };
 
-  // Fonction pour creer un marker avec emoji dans un pin
-  const createEmojiIcon = (sport: string) => {
-    const emoji = getSportEmoji(sport);
-    return new L.DivIcon({
-      html: `
-        <div class="custom-marker-pin">
-          <div class="pin-emoji">${emoji}</div>
-        </div>
-      `,
-      className: 'custom-emoji-marker',
-      iconSize: [40, 50],
-      iconAnchor: [20, 50],
-      popupAnchor: [0, -50],
-    });
-  };
+  // Fonction pour creer un marker avec emoji dans un pin (memoise)
+  const createEmojiIcon = useMemo(() => {
+    const iconCache: { [key: string]: L.DivIcon } = {};
+    return (sport: string) => {
+      if (!iconCache[sport]) {
+        const emoji = getSportEmoji(sport);
+        iconCache[sport] = new L.DivIcon({
+          html: `
+            <div class="custom-marker-pin">
+              <div class="pin-emoji">${emoji}</div>
+            </div>
+          `,
+          className: 'custom-emoji-marker',
+          iconSize: [40, 50],
+          iconAnchor: [20, 50],
+          popupAnchor: [0, -50],
+        });
+      }
+      return iconCache[sport];
+    };
+  }, []);
 
   return (
     <div className="relative h-full w-full">
@@ -163,6 +230,12 @@ export const MapView: React.FC<MapViewProps> = ({
 
         {/* Marker position utilisateur + bouton recentrage */}
         <UserLocationMarker />
+
+        {/* Zoom sur ville recherchee */}
+        {searchCenter && <SearchZoom center={searchCenter} />}
+
+        {/* Auto-zoom sur resultats filtres */}
+        {autoZoom && clubs.length > 0 && <AutoZoom clubs={clubs} />}
 
         {/* Markers des clubs avec emojis et clustering */}
         <MarkerClusterGroup
@@ -193,6 +266,12 @@ export const MapView: React.FC<MapViewProps> = ({
                   <div className="text-3xl mb-2">{getSportEmoji(club.sport)}</div>
                   <strong className="text-lg">{club.name}</strong>
                   <p className="text-gray-600 text-sm mt-1">{club.sport}</p>
+                  <a
+                    href={`/clubs/${club.id}`}
+                    className="mt-2 inline-block text-primary hover:text-primary-dark font-semibold text-sm"
+                  >
+                    Voir la fiche →
+                  </a>
                 </div>
               </Popup>
             </Marker>

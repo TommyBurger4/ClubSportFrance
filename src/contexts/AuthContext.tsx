@@ -39,7 +39,16 @@ interface AuthContextType {
   error: string | null;
 
   // Fonctions d'authentification
-  register: (email: string, password: string, displayName: string, role?: 'user' | 'club') => Promise<AuthResult>;
+  register: (
+    email: string,
+    password: string,
+    displayName: string,
+    role?: 'user' | 'club',
+    sport?: string,
+    league?: string,
+    address?: { street: string; postalCode: string; city: string },
+    coordinates?: { latitude: number; longitude: number }
+  ) => Promise<AuthResult>;
   login: (email: string, password: string) => Promise<AuthResult>;
   loginGoogle: (role?: 'user' | 'club') => Promise<AuthResult>;
   loginApple: (role?: 'user' | 'club') => Promise<AuthResult>;
@@ -85,12 +94,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     email: string,
     password: string,
     displayName: string,
-    role: 'user' | 'club' = 'user'
+    role: 'user' | 'club' = 'user',
+    sport?: string,
+    league?: string,
+    address?: { street: string; postalCode: string; city: string },
+    coordinates?: { latitude: number; longitude: number }
   ): Promise<AuthResult> => {
     setError(null);
     setLoading(true);
 
-    const result = await registerWithEmail(email, password, displayName, role);
+    const result = await registerWithEmail(email, password, displayName, role, sport, league, address, coordinates);
 
     if (!result.success && result.error) {
       setError(result.error);

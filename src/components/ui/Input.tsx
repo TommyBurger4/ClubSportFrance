@@ -23,7 +23,7 @@ export const Input: React.FC<InputProps> = ({
 }) => {
   // Classes de base
   const baseClasses =
-    'px-4 py-2 border rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary';
+    'px-4 py-2 border rounded-lg text-gray-900 bg-white transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-gray-400';
 
   // Classes d'erreur
   const errorClasses = error

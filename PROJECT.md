@@ -1,8 +1,8 @@
 # 🌐 ClubSportFrance (Site Web)
 
 **Cree le :** 02/12/2025
-**Derniere mise a jour :** 03/12/2025 14:20
-**Version actuelle :** 0.3.1
+**Derniere mise a jour :** 04/12/2025 18:30
+**Version actuelle :** 0.4.0
 
 ---
 
@@ -588,6 +588,73 @@ _Aucune tache en cours_
 ---
 
 ## 📅 JOURNAL DE DEVELOPPEMENT
+
+### 04/12/2025 18:30 - Map interactive complete avec clubs reels (v0.4.0)
+- 🗺️ **MAP COMPLETE ET FONCTIONNELLE** : Carte interactive avec clubs reels, recherche geo, et filtres
+- **Inscription club avec adresse** :
+  - Formulaire 2 etapes redesigne (Step 1: compte, Step 2: adresse)
+  - Composant Select reutilisable pour dropdowns (sports/ligues)
+  - 3 champs adresse separes (rue, code postal, ville)
+  - Geocodage automatique via Nominatim API (gratuit, sans API key)
+  - Stockage address + coordinates dans Firestore users/
+  - Validation adresse avant creation compte
+- **Affichage clubs reels** :
+  - Service clubService.ts : getAllClubs(), getClubById()
+  - Remplacement total mock data par vraies donnees Firestore
+  - Chargement depuis collection users/ avec role='club'
+  - Filtrage clubs sans coordinates (adresse incomplete)
+  - Popup markers avec lien "Voir la fiche →"
+- **Page profil club (/clubs/[clubId])** :
+  - Affichage public complete : infos, adresse, ligue, sport
+  - Mode edition conditionnel si user = proprietaire
+  - Sections : Informations, Contact, Equipements, Localisation, Stats
+  - Boutons "Modifier" pour chaque section (UI prete, edition a implementer)
+  - Badge "Votre club" si proprietaire
+  - Bouton deconnexion en bas pour proprietaire
+- **Page dashboard (/dashboard)** :
+  - Redirection automatique vers /clubs/[userId]?edit=true
+  - Verification role='club' obligatoire
+  - Redirection /login si non connecte
+  - Pas de dashboard separe, profil = dashboard
+- **Recherche geographique** :
+  - Barre recherche villes francaises avec bouton 🔍
+  - Geocodage ville via Nominatim API
+  - Zoom automatique sur ville trouvee (niveau 12)
+  - Alert si ville introuvable en France
+  - Placeholder clair : "Rechercher une ville en France..."
+- **Filtres par sport** :
+  - Dropdown avec icone entonnoir
+  - 4 sports disponibles : Football ⚽, Basketball 🏀, Volleyball 🏐, Hockey 🏒
+  - Badge rouge avec nombre filtres actifs
+  - Fermeture auto au clic exterieur
+  - Bouton "Reinitialiser" si filtres actifs
+  - Compteur dynamique : X / Y clubs
+- **Header transparent** :
+  - Position absolute au-dessus carte (plus d'obstruction)
+  - Logo seul a gauche (emoji 🏃‍♂️)
+  - Recherche + Filtres + Espace Club alignes a droite
+  - Shadow sur elements blancs
+  - Responsive (barre recherche flex)
+- **Simplification architecture** :
+  - Suppression complete features utilisateurs reguliers (favoris, profils)
+  - Focus uniquement clubs : consultation publique + gestion proprietaire
+  - Visiteurs peuvent UNIQUEMENT voir carte et profils clubs (pas de compte user)
+- **Firestore Rules deployees** :
+  - Lecture publique pour role='club' (visiteurs peuvent voir clubs)
+  - Lecture authentifiee pour role='user' (preparation future)
+  - Creation/Update/Delete uniquement par proprietaire
+  - Deploiement reussi via Firebase CLI (firebase use --add + deploy)
+- **Optimisations performance** :
+  - Memorisation icones Leaflet (useMemo) pour eviter recreations
+  - Stabilisation geolocalisation (flag hasSetView)
+  - Try/catch sur tous les map.setView
+  - Key unique sur MapView pour eviter remounts
+- **Corrections** :
+  - Fix Leaflet "Map container is being reused"
+  - Fix "undefined is not an object" geolocalisation
+  - Fix Firestore photoURL undefined (conditional add)
+  - Fix deploiement Firestore Rules (.firebaserc manquant)
+- **Progression** : Phase 4 Carte 8/8 (100%), Phase 5 Clubs 3/13 (23%), Phase 6 Recherche 2/11 (18%)
 
 ### 03/12/2025 14:20 - Nettoyage arborescence projet (v0.3.1)
 - 🧹 **REFACTORING ARBORESCENCE** : Organisation propre et claire du repository
