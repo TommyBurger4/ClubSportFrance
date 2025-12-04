@@ -9,10 +9,21 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { getClubById, Club } from '@/services/club/clubService';
 import { Button, Card } from '@/components/ui';
+
+// Charger MiniMap uniquement cote client (pas de SSR)
+const MiniMap = dynamic(() => import('@/components/MiniMap').then(mod => ({ default: mod.MiniMap })), {
+  ssr: false,
+  loading: () => (
+    <div className="bg-gray-200 h-48 rounded-lg flex items-center justify-center">
+      <p className="text-gray-500">Chargement carte...</p>
+    </div>
+  ),
+});
 
 export default function ClubPage() {
   const params = useParams();
@@ -251,12 +262,22 @@ export default function ClubPage() {
             {/* Carte miniature */}
             <Card>
               <h2 className="text-xl font-bold text-gray-900 mb-4">📍 Localisation</h2>
-              <div className="bg-gray-200 h-48 rounded-lg flex items-center justify-center text-gray-500">
-                Mini carte (TODO)
-              </div>
-              <p className="text-sm text-gray-600 mt-2">
-                {club.address.city}
+              <MiniMap
+                latitude={club.coordinates.latitude}
+                longitude={club.coordinates.longitude}
+                clubName={club.name}
+                sport={club.sport}
+              />
+              <p className="text-sm text-gray-600 mt-3">
+                {club.address.street}<br />
+                {club.address.postalCode} {club.address.city}
               </p>
+              <Link
+                href={`/map`}
+                className="mt-3 inline-block text-primary hover:text-primary-dark font-semibold text-sm"
+              >
+                Voir sur la carte →
+              </Link>
             </Card>
 
             {/* Stats (si owner) */}
