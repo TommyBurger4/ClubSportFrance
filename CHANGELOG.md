@@ -11,8 +11,79 @@ et ce projet respecte [Semantic Versioning](https://semver.org/lang/fr/).
 
 ### En cours
 - Configuration OAuth Firebase Console (Google Sign-In + Apple Sign-In)
-- Modal edition profil club (description, contact, equipements, photos)
 - Middleware protection routes privees
+- Affichage public equipes/categories sur fiche club
+- Filtres avances carte (categorie age, niveau, genre)
+
+---
+
+## [0.5.0] - 2025-12-09
+
+### 🎯 Systeme de gestion equipes/categories complet
+
+#### Ajoute
+- **Structure sports complete** (src/data/sportsCategories.ts) :
+  - 44 sports complets avec categories d'age et niveaux de competition
+  - 11 sports d'equipe : Football, Basketball, Volleyball, Rugby XV, Rugby XIII, Handball, Hockey glace, Hockey gazon, Baseball, Football americain, Futsal
+  - 33 sports individuels : Tennis, Badminton, Judo, Karate, Boxe, Lutte, Escrime, Athletisme, Natation, Cyclisme, Aviron, Golf, Tir, Tir a l'arc, Equitation, Canoe-Kayak, Triathlon, Escalade, Roller/Skateboard, Motocross, Sports de glisse nautiques, Boules/Petanque, Escrime artistique, Danse sportive, Ski, Snowboard, Surf, Voile, Taekwondo, Sambo, Savate boxe francaise, Padel
+  - Interfaces TypeScript completes (CategorieAge, NiveauCompetition, SportCategories)
+  - Fonctions utilitaires (getSportCategories, isSportEquipe, getSportsEquipe, getSportsIndividuels)
+  - Donnees issues de ligue_france.csv (57 sports references par federations)
+- **Dashboard Club redesigne** (/dashboard/page.tsx) :
+  - Detection automatique type de sport (equipe vs individuel)
+  - Affichage informations club dans sidebar gauche
+  - Integration composants specialises selon type de sport
+  - Boutons navigation vers fiche publique et carte
+  - Protection authentification role='club' uniquement
+- **Gestionnaire equipes sports collectifs** (EquipeManager.tsx) :
+  - Formulaire ajout equipe avec :
+    - Selection categorie d'age (U6-U7, U13, Seniors...)
+    - Selection niveau competition (Departemental, Regional, National...)
+    - Selection division si applicable (D1, D2, R1, R2...)
+    - Selection genre (Masculin, Feminin, Mixte)
+  - Liste equipes enregistrees avec affichage details complets
+  - Suppression equipe avec popup confirmation
+  - Sauvegarde automatique Firestore dans champ equipes[]
+  - Validation formulaire complete cote client
+- **Gestionnaire categories sports individuels** (CategoriesManager.tsx) :
+  - Interface checkbox pour cocher categories d'age acceptees
+  - Selection genres pour chaque categorie (Hommes, Femmes, ou les deux)
+  - Affichage tranches d'age explicites (ex: "U11: 10-11 ans")
+  - Deselection automatique si aucun genre selectionne
+  - Sauvegarde automatique Firestore dans champ categoriesAcceptees[]
+  - Feedback visuel avec fond bleu pour categories cochees
+- **Structure Firestore etendue** :
+  - Champ `equipes[]` pour sports d'equipe (id, categorieId, categorieNom, niveauId, niveauNom, divisionId?, genre)
+  - Champ `categoriesAcceptees[]` pour sports individuels (categorieId, categorieNom, genresAcceptes[])
+  - Timestamp updatedAt mis a jour automatiquement
+- **Workflow inscription ameliore** :
+  - Etape 1 (register) : Choix sport avec federation auto-remplie
+  - Etape 2 (register) : Adresse complete + geocodage
+  - Post-inscription : Redirection dashboard pour gerer equipes/categories
+- **Donnees sports detaillees par federation** :
+  - Football (FFF) : 8 categories U6-Seniors, 6 niveaux competition (Ligue 1, Ligue 2, National, Regional, Departemental, Loisirs)
+  - Basketball (FFBB) : 8 categories Baby-Seniors, niveaux Betclic Elite jusqu'a Loisirs
+  - Rugby XV (FFR) : 7 categories U6-Seniors, niveaux Top 14 jusqu'a Departemental
+  - Tennis (FFT) : 11 categories Mini-Tennis jusqu'a Veterans 55+, mode individuel
+  - Judo (FFJDA) : 12 categories Eveil jusqu'a Veterans 4, mode individuel
+  - Et 39 autres sports avec structures detaillees officielles
+- **Documentation complete** :
+  - TODO_NEXT_SESSION.md avec checklist tests detaillee (10 scenarios)
+  - PROJECT.md mis a jour avec journal developpement complet
+  - CHANGELOG.md avec details fonctionnalites v0.5.0
+
+#### Optimise
+- Composants React avec loading states et error handling
+- Sauvegarde Firestore debounced automatique
+- Validation formulaires cote client avant soumission
+- Interface responsive et accessible
+- Memorisation donnees sport pour eviter refetch
+
+#### Corrige
+- Fix import Select component dans EquipeManager
+- Fix types TypeScript pour genres (union type strict)
+- Fix structure conditionnelle niveauxDisponibles (optional chaining)
+- Fix re-render MapContainer avec key unique
 
 ---
 

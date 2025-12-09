@@ -6,9 +6,9 @@
 
 **Editeur :** Topal - Strasbourg, France
 
-**Status :** 🚧 En cours de developpement - Phase 1/15 completee
+**Status :** 🚧 En cours de developpement - v0.5.0 Dashboard equipes/categories
 
-**Version :** 0.1.0
+**Version :** 0.5.0
 
 ---
 
@@ -29,10 +29,10 @@ ClubSportFrance est un site web permettant de :
 - **Framework :** Next.js 16 (App Router + React 19)
 - **Langage :** TypeScript (strict mode)
 - **Styling :** Tailwind CSS v4
-- **State Management :** Zustand + Context API
-- **Carte :** Google Maps JavaScript API
-- **Animations :** Framer Motion
-- **i18n :** next-intl (francais, anglais)
+- **State Management :** Context API (Auth, Theme)
+- **Carte :** Leaflet + react-leaflet + react-leaflet-cluster
+- **Maps Provider :** OpenStreetMap (gratuit, sans API key)
+- **i18n :** next-intl (francais, anglais) - A configurer
 
 ### Backend
 - **BaaS :** Firebase
@@ -122,23 +122,44 @@ clubsportfrance/
 
 ## 📄 Documentation
 
-- **ANALYSE_CODE_EXISTANT.md** - Analyse complete du code React Native + TodoList
-- **PROJECT.md** - Memoire permanente du projet (pas encore cree)
-- **CHANGELOG.md** - Historique des versions (pas encore cree)
+- **PROJECT.md** - Memoire permanente du projet (journal, decisions, todolist)
+- **CHANGELOG.md** - Historique des versions (v0.1.0 → v0.5.0)
+- **TODO_NEXT_SESSION.md** - Rappel tests a effectuer (nouvelle session)
 - **CONTRIBUTING.md** - Guide de contribution
+- **ANALYSE_CODE_EXISTANT.md** - Analyse complete du code React Native (archive)
 
 ---
 
-## 📝 Progression
+## 📝 Progression (v0.5.0)
 
-**Phase 1/15 : Initialisation** ✅ TERMINEE
-- Next.js initialise avec TypeScript + Tailwind
-- Firebase configure (Auth, Firestore, Storage)
-- Structure de dossiers creee
-- Theme Tailwind personnalise
-- Page d'accueil temporaire
+**Phase 1/16 : Initialisation** ✅ TERMINEE
+- Next.js 16 + TypeScript + Tailwind CSS v4
+- Firebase configure (Auth, Firestore, Analytics)
+- Composants UI de base (Button, Input, Card, Select)
 
-**Phase 2/15 : Services & Authentification** (en cours)
+**Phase 2/16 : Authentification** ✅ TERMINEE (5/9)
+- Email/Password + Google + Apple Sign-In (OAuth a configurer)
+- AuthContext avec hooks
+- Pages login, register, forgot-password
+
+**Phase 4/16 : Carte & Geolocalisation** ✅ TERMINEE (8/8)
+- Carte Leaflet + OpenStreetMap
+- Geolocalisation utilisateur
+- Clustering markers
+- Recherche ville + filtres sport
+
+**Phase 5/16 : Clubs Sportifs** ⏳ EN COURS (3/13)
+- Service clubService.ts (CRUD)
+- Page detail club SSR (/clubs/[clubId])
+- Inscription avec adresse + geocodage
+
+**Phase 8/16 : Dashboard Club** ⏳ EN COURS (6/14)
+- Dashboard avec detection type sport
+- Gestionnaire equipes (sports collectifs)
+- Gestionnaire categories (sports individuels)
+- 44 sports complets avec niveaux/categories
+
+**Autres phases :** A venir (Favoris, Recherche avancee, Stats, Deploiement...)
 
 ---
 

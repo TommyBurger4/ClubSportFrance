@@ -1,8 +1,8 @@
 # 🌐 ClubSportFrance (Site Web)
 
 **Cree le :** 02/12/2025
-**Derniere mise a jour :** 04/12/2025 18:30
-**Version actuelle :** 0.4.0
+**Derniere mise a jour :** 09/12/2025 23:00
+**Version actuelle :** 0.5.0
 
 ---
 
@@ -588,6 +588,82 @@ _Aucune tache en cours_
 ---
 
 ## 📅 JOURNAL DE DEVELOPPEMENT
+
+### 09/12/2025 23:00 - Systeme de gestion equipes/categories complet (v0.5.0)
+- 🎯 **GESTION EQUIPES/CATEGORIES COMPLETE** : Dashboard avec gestion avancee selon type de sport
+- **Structure sports complete** (src/data/sportsCategories.ts) :
+  - 44 sports complets avec categories d'age et niveaux de competition
+  - 11 sports d'equipe (Football, Basketball, Volleyball, Rugby XV, Rugby XIII, Handball, Hockey glace, Hockey gazon, Baseball, Football americain, Futsal)
+  - 33 sports individuels (Tennis, Badminton, Judo, Karate, Boxe, Lutte, Escrime, Athletisme, Natation, Cyclisme, Aviron, Golf, Tir, Tir a l'arc, Equitation, Canoe-Kayak, Triathlon, Escalade, Roller/Skateboard, Motocross, Sports de glisse nautiques, Boules/Petanque, Escrime artistique, Danse sportive, Ski, Snowboard, Surf, Voile, Taekwondo, Sambo, Savate boxe francaise, Padel)
+  - Donnees issues de ligue_france.csv (57 sports references)
+  - Interfaces TypeScript completes (CategorieAge, NiveauCompetition, SportCategories)
+  - Fonctions utilitaires (getSportCategories, isSportEquipe, getSportsEquipe, getSportsIndividuels)
+- **Dashboard Club redesigne** (/dashboard/page.tsx) :
+  - Detection automatique type de sport (equipe vs individuel)
+  - Affichage informations club dans sidebar
+  - Integration composants specialises selon type
+  - Boutons navigation (Fiche publique, Retour carte)
+  - Protection authentification role='club'
+- **Gestionnaire equipes** (EquipeManager.tsx) pour sports collectifs :
+  - Ajout equipes avec formulaire complet :
+    - Selection categorie d'age (U6-U7, U13, Seniors...)
+    - Selection niveau competition (Departemental, Regional, National...)
+    - Selection division si applicable (D1, D2, R1, R2...)
+    - Selection genre (Masculin, Feminin, Mixte)
+  - Liste equipes enregistrees avec details
+  - Suppression equipes avec confirmation
+  - Sauvegarde automatique Firestore (champ equipes[])
+  - Validation formulaire complete
+- **Gestionnaire categories** (CategoriesManager.tsx) pour sports individuels :
+  - Interface checkbox pour cocher categories acceptees
+  - Selection genres pour chaque categorie (Hommes, Femmes, ou les deux)
+  - Affichage tranches d'age (ex: "U11: 10-11 ans")
+  - Deselection automatique si plus aucun genre
+  - Sauvegarde automatique Firestore (champ categoriesAcceptees[])
+  - Interface intuitive avec feedback visuel
+- **Structure Firestore etendue** :
+  - Sports d'equipe stockent equipes[] :
+    ```typescript
+    {
+      id: "u13-departemental-D2-M-timestamp",
+      categorieId: "u13",
+      categorieNom: "U13",
+      niveauId: "departemental",
+      niveauNom: "Departemental",
+      divisionId: "D2",
+      genre: "M"
+    }
+    ```
+  - Sports individuels stockent categoriesAcceptees[] :
+    ```typescript
+    {
+      categorieId: "u11",
+      categorieNom: "U11",
+      genresAcceptes: ["M", "F"]
+    }
+    ```
+- **Workflow inscription ameliore** :
+  - Etape 1 (register) : Choix sport (federation auto-remplie)
+  - Etape 2 (register) : Adresse + geocodage
+  - Post-inscription : Dashboard pour gerer equipes/categories
+- **Donnees sports detaillees par federation** :
+  - Football (FFF) : 8 categories U6-Seniors, 6 niveaux competition
+  - Basketball (FFBB) : 8 categories Baby-Seniors, Elite jusqu'a Loisirs
+  - Rugby XV (FFR) : 7 categories, Top 14 jusqu'a Departemental
+  - Tennis (FFT) : 11 categories Mini-Veterans 55+
+  - Judo (FFJDA) : 12 categories Eveil-Veterans 4
+  - Et 39 autres sports avec structures detaillees...
+- **Optimisations** :
+  - Composants React optimises (loading states, error handling)
+  - Sauvegarde Firestore debounced automatique
+  - Validation formulaires cote client
+  - Interface responsive et accessible
+- **Corrections** :
+  - Fix import Select component dans EquipeManager
+  - Fix types TypeScript pour genres
+  - Fix structure conditionnelle niveauxDisponibles
+- **Progression** : Phase 8 Dashboard 6/14 (43%)
+- **A tester** : Workflow complet inscription + ajout equipes + verification Firestore
 
 ### 04/12/2025 18:30 - Map interactive complete avec clubs reels (v0.4.0)
 - 🗺️ **MAP COMPLETE ET FONCTIONNELLE** : Carte interactive avec clubs reels, recherche geo, et filtres

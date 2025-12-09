@@ -11,13 +11,13 @@
  * - Geocodage automatique pour coordonnees GPS
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button, Input, Card, Select } from '@/components/ui';
 import { isValidEmail, validatePassword, passwordsMatch } from '@/services/auth/authService';
-import { SPORTS, LEAGUES } from '@/constants/sports';
+import { SPORTS, getFederationBySport } from '@/constants/sports';
 import { geocodeAddress, validateAddress } from '@/services/geocoding/geocodingService';
 
 export default function RegisterPage() {
@@ -42,6 +42,16 @@ export default function RegisterPage() {
 
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState('');
+
+  // Auto-remplir la federation quand le sport change
+  useEffect(() => {
+    if (sport) {
+      const federation = getFederationBySport(sport);
+      if (federation) {
+        setLeague(federation);
+      }
+    }
+  }, [sport]);
 
   // Validation Etape 1
   const validateStep1 = (): boolean => {
@@ -196,14 +206,14 @@ export default function RegisterPage() {
                 helperText="Selectionnez le sport principal de votre club"
               />
 
-              <Select
-                label="Ligue / Federation"
+              <Input
+                type="text"
+                label="Federation"
                 value={league}
-                onChange={(e) => setLeague(e.target.value)}
-                options={LEAGUES}
-                required
+                readOnly
+                disabled
                 fullWidth
-                helperText="A quelle federation etes-vous rattache ?"
+                helperText="Federation auto-remplie selon le sport"
               />
 
               <Input

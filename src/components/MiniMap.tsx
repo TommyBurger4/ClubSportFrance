@@ -9,18 +9,10 @@
  * - Taille reduite pour sidebar
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-
-// Fix pour les icones Leaflet avec Next.js
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
 
 interface MiniMapProps {
   latitude: number;
@@ -35,6 +27,21 @@ export const MiniMap: React.FC<MiniMapProps> = ({
   clubName,
   sport,
 }) => {
+  const [isClient, setIsClient] = useState(false);
+
+  // Initialiser Leaflet cote client uniquement
+  useEffect(() => {
+    setIsClient(true);
+
+    // Fix pour les icones Leaflet avec Next.js
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    });
+  }, []);
+
   // Fonction pour obtenir l'emoji selon le sport
   const getSportEmoji = (sport: string): string => {
     const sportEmojis: { [key: string]: string } = {
@@ -53,6 +60,8 @@ export const MiniMap: React.FC<MiniMapProps> = ({
 
   // Icone personnalisee avec emoji du sport (memoise)
   const clubIcon = useMemo(() => {
+    if (!isClient) return null;
+
     const emoji = getSportEmoji(sport);
     return new L.DivIcon({
       html: `
@@ -65,11 +74,21 @@ export const MiniMap: React.FC<MiniMapProps> = ({
       iconAnchor: [20, 50],
       popupAnchor: [0, -50],
     });
-  }, [sport]);
+  }, [sport, isClient]);
+
+  // Afficher placeholder pendant le chargement cote client
+  if (!isClient) {
+    return (
+      <div className="bg-gray-200 h-48 rounded-lg flex items-center justify-center">
+        <p className="text-gray-500">Chargement carte...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative h-48 w-full rounded-lg overflow-hidden">
       <MapContainer
+        key={`${latitude}-${longitude}`}
         center={[latitude, longitude]}
         zoom={14}
         scrollWheelZoom={false}
@@ -87,7 +106,7 @@ export const MiniMap: React.FC<MiniMapProps> = ({
         />
 
         {/* Marker du club */}
-        <Marker position={[latitude, longitude]} icon={clubIcon} />
+        {clubIcon && <Marker position={[latitude, longitude]} icon={clubIcon} />}
       </MapContainer>
     </div>
   );

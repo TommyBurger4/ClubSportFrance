@@ -7,7 +7,7 @@
  * - Filtrer clubs par sport, ligue, localisation
  */
 
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/firebase';
 
 // Interface pour un club sur la carte
@@ -25,6 +25,13 @@ export interface Club {
     latitude: number;
     longitude: number;
   };
+  description?: string;
+  contact?: {
+    phone?: string;
+    email?: string;
+    website?: string;
+  };
+  facilities?: string[];
   createdAt?: any;
 }
 
@@ -128,6 +135,9 @@ export const getClubById = async (clubId: string): Promise<ClubServiceResult> =>
         latitude: 0,
         longitude: 0,
       },
+      description: data.description,
+      contact: data.contact,
+      facilities: data.facilities,
       createdAt: data.createdAt,
     };
 
@@ -250,6 +260,54 @@ export const getClubsByLeague = async (league: string): Promise<ClubServiceResul
       success: false,
       error: 'Impossible de filtrer les clubs',
       clubs: [],
+    };
+  }
+};
+
+/**
+ * Mettre a jour les donnees d un club
+ * @param clubId - ID du club
+ * @param data - Donnees a mettre a jour
+ * @returns ClubServiceResult
+ */
+export const updateClub = async (
+  clubId: string,
+  data: Partial<{
+    description: string;
+    address: {
+      street: string;
+      postalCode: string;
+      city: string;
+    };
+    sport: string;
+    league: string;
+    contact: {
+      phone?: string;
+      email?: string;
+      website?: string;
+    };
+    facilities: string[];
+  }>
+): Promise<ClubServiceResult> => {
+  try {
+    const clubRef = doc(db, "users", clubId);
+
+    // Ajouter updatedAt
+    const updateData: any = {
+      ...data,
+      updatedAt: new Date(),
+    };
+
+    await updateDoc(clubRef, updateData);
+
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error("Erreur mise a jour club:", error);
+    return {
+      success: false,
+      error: "Impossible de mettre a jour le club",
     };
   }
 };

@@ -12,8 +12,9 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { getClubById, Club } from '@/services/club/clubService';
-import { Button, Card } from '@/components/ui';
+import { getClubById, updateClub, Club } from '@/services/club/clubService';
+import { Button, Card, Modal, Textarea, Input, Select } from '@/components/ui';
+import { SPORTS, getFederationBySport } from '@/constants/sports';
 
 // Charger MiniMap uniquement cote client (pas de SSR)
 const MiniMap = dynamic(() => import('@/components/MiniMap').then(mod => ({ default: mod.MiniMap })), {
@@ -37,6 +38,26 @@ export default function ClubPage() {
   const [club, setClub] = useState<Club | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Etats pour les modals d'edition
+  const [showInfoModal, setShowInfoModal] = useState(false);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [showFacilitiesModal, setShowFacilitiesModal] = useState(false);
+
+  // Etats pour les formulaires
+  const [description, setDescription] = useState('');
+  const [street, setStreet] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [city, setCity] = useState('');
+  const [sport, setSport] = useState('');
+  const [league, setLeague] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [website, setWebsite] = useState('');
+  const [facilities, setFacilities] = useState<string[]>([]);
+  const [newFacility, setNewFacility] = useState('');
+
+  const [saveLoading, setSaveLoading] = useState(false);
 
   // Verifier si l'utilisateur est le proprietaire du club
   const isOwner = user && user.uid === clubId;
@@ -68,6 +89,109 @@ export default function ClubPage() {
 
     loadClub();
   }, [clubId]);
+
+  // Initialiser les formulaires quand le club est charge
+  useEffect(() => {
+    if (club) {
+      setDescription(club.description || '');
+      setStreet(club.address?.street || '');
+      setPostalCode(club.address?.postalCode || '');
+      setCity(club.address?.city || '');
+      setSport(club.sport || '');
+      setLeague(club.league || '');
+      setPhone(club.contact?.phone || '');
+      setEmail(club.contact?.email || '');
+      setWebsite(club.contact?.website || '');
+      setFacilities(club.facilities || []);
+    }
+  }, [club]);
+
+  // Auto-remplir la federation quand le sport change
+  useEffect(() => {
+    if (sport) {
+      const federation = getFederationBySport(sport);
+      if (federation) {
+        setLeague(federation);
+      }
+    }
+  }, [sport]);
+
+  // Fonction pour sauvegarder les informations (description, adresse, sport, ligue)
+  const handleSaveInfo = async () => {
+    if (!club) return;
+
+    setSaveLoading(true);
+    const result = await updateClub(club.id, {
+      description,
+      address: { street, postalCode, city },
+      sport,
+      league,
+    } as any);
+
+    if (result.success) {
+      setClub({
+        ...club,
+        description,
+        address: { street, postalCode, city },
+        sport,
+        league,
+      });
+      setShowInfoModal(false);
+    } else {
+      alert(result.error || 'Erreur lors de la sauvegarde');
+    }
+
+    setSaveLoading(false);
+  };
+
+  // Fonction pour sauvegarder le contact
+  const handleSaveContact = async () => {
+    if (!club) return;
+
+    setSaveLoading(true);
+    const result = await updateClub(club.id, {
+      contact: { phone, email, website },
+    });
+
+    if (result.success) {
+      setClub({ ...club, contact: { phone, email, website } });
+      setShowContactModal(false);
+    } else {
+      alert(result.error || 'Erreur lors de la sauvegarde');
+    }
+
+    setSaveLoading(false);
+  };
+
+  // Fonction pour sauvegarder les equipements
+  const handleSaveFacilities = async () => {
+    if (!club) return;
+
+    setSaveLoading(true);
+    const result = await updateClub(club.id, { facilities });
+
+    if (result.success) {
+      setClub({ ...club, facilities });
+      setShowFacilitiesModal(false);
+    } else {
+      alert(result.error || 'Erreur lors de la sauvegarde');
+    }
+
+    setSaveLoading(false);
+  };
+
+  // Ajouter un equipement
+  const handleAddFacility = () => {
+    if (newFacility.trim() && !facilities.includes(newFacility.trim())) {
+      setFacilities([...facilities, newFacility.trim()]);
+      setNewFacility('');
+    }
+  };
+
+  // Retirer un equipement
+  const handleRemoveFacility = (facility: string) => {
+    setFacilities(facilities.filter((f) => f !== facility));
+  };
 
   // Fonction pour obtenir l'emoji du sport
   const getSportEmoji = (sport: string): string => {
@@ -186,7 +310,10 @@ export default function ClubPage() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">📋 Informations</h2>
                 {isOwner && (
-                  <button className="text-primary hover:text-primary-dark text-sm font-semibold">
+                  <button
+                    onClick={() => setShowInfoModal(true)}
+                    className="text-primary hover:text-primary-dark text-sm font-semibold"
+                  >
                     ✏️ Modifier
                   </button>
                 )}
@@ -208,52 +335,103 @@ export default function ClubPage() {
                   <p className="text-gray-900">{getLeagueName(club.league)}</p>
                 </div>
 
-                {/* Description (TODO) */}
+                {/* Description */}
                 <div>
                   <h3 className="text-sm font-semibold text-gray-700 mb-1">📝 Description</h3>
-                  <p className="text-gray-600 italic">
-                    {isOwner
-                      ? 'Cliquez sur "Modifier" pour ajouter une description de votre club'
-                      : 'Aucune description disponible'}
-                  </p>
+                  {club.description ? (
+                    <p className="text-gray-900 whitespace-pre-line">{club.description}</p>
+                  ) : (
+                    <p className="text-gray-600 italic">
+                      {isOwner
+                        ? 'Cliquez sur "Modifier" pour ajouter une description de votre club'
+                        : 'Aucune description disponible'}
+                    </p>
+                  )}
                 </div>
               </div>
             </Card>
 
-            {/* Contact (TODO) */}
+            {/* Contact */}
             <Card>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">📞 Contact</h2>
                 {isOwner && (
-                  <button className="text-primary hover:text-primary-dark text-sm font-semibold">
+                  <button
+                    onClick={() => setShowContactModal(true)}
+                    className="text-primary hover:text-primary-dark text-sm font-semibold"
+                  >
                     ✏️ Modifier
                   </button>
                 )}
               </div>
 
-              <p className="text-gray-600 italic">
-                {isOwner
-                  ? 'Ajoutez vos coordonnees de contact (telephone, email, site web)'
-                  : 'Aucune information de contact disponible'}
-              </p>
+              {club.contact && (club.contact.phone || club.contact.email || club.contact.website) ? (
+                <div className="space-y-3">
+                  {club.contact.phone && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-1">📱 Telephone</h3>
+                      <p className="text-gray-900">{club.contact.phone}</p>
+                    </div>
+                  )}
+                  {club.contact.email && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-1">📧 Email</h3>
+                      <p className="text-gray-900">{club.contact.email}</p>
+                    </div>
+                  )}
+                  {club.contact.website && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-1">🌐 Site web</h3>
+                      <a
+                        href={club.contact.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:text-primary-dark hover:underline"
+                      >
+                        {club.contact.website}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-gray-600 italic">
+                  {isOwner
+                    ? 'Ajoutez vos coordonnees de contact (telephone, email, site web)'
+                    : 'Aucune information de contact disponible'}
+                </p>
+              )}
             </Card>
 
-            {/* Equipements (TODO) */}
+            {/* Equipements */}
             <Card>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-gray-900">🏟️ Equipements</h2>
                 {isOwner && (
-                  <button className="text-primary hover:text-primary-dark text-sm font-semibold">
+                  <button
+                    onClick={() => setShowFacilitiesModal(true)}
+                    className="text-primary hover:text-primary-dark text-sm font-semibold"
+                  >
                     ✏️ Modifier
                   </button>
                 )}
               </div>
 
-              <p className="text-gray-600 italic">
-                {isOwner
-                  ? 'Listez les equipements disponibles (vestiaires, douches, parking, etc.)'
-                  : 'Aucune information sur les equipements'}
-              </p>
+              {club.facilities && club.facilities.length > 0 ? (
+                <ul className="space-y-2">
+                  {club.facilities.map((facility, index) => (
+                    <li key={index} className="flex items-center gap-2 text-gray-900">
+                      <span className="text-green-600">✓</span>
+                      {facility}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-600 italic">
+                  {isOwner
+                    ? 'Listez les equipements disponibles (vestiaires, douches, parking, etc.)'
+                    : 'Aucune information sur les equipements'}
+                </p>
+              )}
             </Card>
           </div>
 
@@ -337,6 +515,219 @@ export default function ClubPage() {
           </div>
         )}
       </main>
+
+      {/* Modal Edition Informations */}
+      <Modal
+        isOpen={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        title="Modifier les informations"
+        size="lg"
+      >
+        <div className="space-y-4">
+          {/* Description */}
+          <Textarea
+            label="Description de votre club"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Decrivez votre club, son histoire, ses valeurs..."
+            rows={4}
+            maxLength={500}
+            showCount
+            fullWidth
+          />
+
+          {/* Adresse */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-gray-700">📍 Adresse</h3>
+
+            <Input
+              label="Rue"
+              value={street}
+              onChange={(e) => setStreet(e.target.value)}
+              placeholder="Ex: 123 Rue du Sport"
+              fullWidth
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Code postal"
+                value={postalCode}
+                onChange={(e) => setPostalCode(e.target.value)}
+                placeholder="Ex: 75001"
+              />
+              <Input
+                label="Ville"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Ex: Paris"
+              />
+            </div>
+          </div>
+
+          {/* Sport */}
+          <Select
+            label="Sport"
+            value={sport}
+            onChange={(e) => setSport(e.target.value)}
+            fullWidth
+            options={SPORTS}
+          />
+
+          {/* Federation (auto-remplie) */}
+          <Input
+            label="Federation"
+            value={league}
+            readOnly
+            disabled
+            fullWidth
+            helperText="Federation auto-remplie selon le sport"
+          />
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => setShowInfoModal(false)}
+              disabled={saveLoading}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSaveInfo}
+              disabled={saveLoading}
+            >
+              {saveLoading ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Edition Contact */}
+      <Modal
+        isOpen={showContactModal}
+        onClose={() => setShowContactModal(false)}
+        title="Modifier les coordonnees"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <Input
+            label="Telephone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="06 12 34 56 78"
+            fullWidth
+          />
+
+          <Input
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="contact@club.fr"
+            fullWidth
+          />
+
+          <Input
+            label="Site web"
+            type="url"
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            placeholder="https://www.club.fr"
+            fullWidth
+          />
+
+          <div className="flex justify-end gap-3">
+            <Button
+              variant="secondary"
+              onClick={() => setShowContactModal(false)}
+              disabled={saveLoading}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSaveContact}
+              disabled={saveLoading}
+            >
+              {saveLoading ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal Edition Equipements */}
+      <Modal
+        isOpen={showFacilitiesModal}
+        onClose={() => setShowFacilitiesModal(false)}
+        title="Gerer les equipements"
+        size="lg"
+      >
+        <div className="space-y-4">
+          {/* Liste des equipements */}
+          {facilities.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-gray-700">Equipements actuels</h3>
+              <ul className="space-y-2">
+                {facilities.map((facility, index) => (
+                  <li
+                    key={index}
+                    className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg"
+                  >
+                    <span className="text-gray-900">{facility}</span>
+                    <button
+                      onClick={() => handleRemoveFacility(facility)}
+                      className="text-red-600 hover:text-red-700 font-semibold text-sm"
+                    >
+                      Retirer
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Ajouter un equipement */}
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-2">Ajouter un equipement</h3>
+            <div className="flex gap-2">
+              <Input
+                value={newFacility}
+                onChange={(e) => setNewFacility(e.target.value)}
+                placeholder="Ex: Vestiaires, Douches, Parking..."
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddFacility();
+                  }
+                }}
+                fullWidth
+              />
+              <Button
+                onClick={handleAddFacility}
+                disabled={!newFacility.trim()}
+                size="sm"
+              >
+                Ajouter
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <Button
+              variant="secondary"
+              onClick={() => setShowFacilitiesModal(false)}
+              disabled={saveLoading}
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={handleSaveFacilities}
+              disabled={saveLoading}
+            >
+              {saveLoading ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
